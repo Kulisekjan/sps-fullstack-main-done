@@ -4,7 +4,7 @@
   "description": "Webová aplikace pro správu domácích zvířat v útulku. Umožňuje přidávat, zobrazovat, upravovat a mazat záznamy o zvířatech. Moderní vzhled, okamžitá aktualizace seznamu, validace a kód v češtině.",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "nodemon server.js"
   },
   "repository": {
     "type": "git",
@@ -18,6 +18,7 @@
   "homepage": "https://github.com/Kulisekjan/sps-fullstack#readme",
   "dependencies": {
     "express": "^5.1.0",
+    "nodemon": "^3.1.10",
     "sqlite3": "^5.1.7"
   }
 }

@@ -217,6 +217,12 @@
                 <input type="checkbox" id="adoptovano" name="adoptovano">
             </div>
             <div>
+                <label for="owner-select">Majitel:</label>
+                <select id="owner-select" name="owner_id">
+                    <option value="">Bez majitele</option>
+                </select>
+            </div>
+            <div>
                 <button type="submit">Přidat zvíře</button>
             </div>
         </form>
@@ -227,8 +233,35 @@
             <!-- Zde se budou zobrazovat zvířata -->
         </ul>
     </section>
+    <section>
+        <h2>Přidat nového majitele</h2>
+        <form id="owner-form">
+            <div>
+                <label for="firstname">Jméno:</label>
+                <input type="text" id="firstname" name="firstname" required>
+            </div>
+            <div>
+                <label for="lastname">Příjmení:</label>
+                <input type="text" id="lastname" name="lastname" required>
+            </div>
+            <div>
+                <label for="phone">Telefon:</label>
+                <input type="text" id="phone" name="phone">
+            </div>
+            <div>
+                <button type="submit">Přidat majitele</button>
+            </div>
+        </form>
+    </section>
+    <section>
+        <h2>Seznam majitelů</h2>
+        <ul id="owners-list"></ul>
+    </section>
+
     <script>
         document.addEventListener('DOMContentLoaded', fetchAnimals);
+        document.addEventListener('DOMContentLoaded', fetchOwners);
+        document.addEventListener('DOMContentLoaded', fillOwnerSelect);
 
         document.getElementById('animal-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -237,11 +270,12 @@
             const vek = parseInt(document.getElementById('vek').value) || null;
             const popis = document.getElementById('popis').value;
             const adoptovano = document.getElementById('adoptovano').checked;
+            const owner_id = document.getElementById('owner-select').value;
             try {
-                const response = await fetch('/api/items', {
+                const response = await fetch('/api/pets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ jmeno, druh, vek, popis, adoptovano })
+                    body: JSON.stringify({ name: jmeno, species: druh, age: vek, description: popis, adopted: adoptovano, owner_id })
                 });
                 if (response.ok) {
                     document.getElementById('animal-form').reset();
@@ -258,7 +292,7 @@
             const list = document.getElementById('animal-list');
             list.innerHTML = '';
             try {
-                const response = await fetch('/api/items');
+                const response = await fetch('/api/pets');
                 const animals = await response.json();
                 if (animals.length === 0) {
                     list.innerHTML = '<li style="text-align:center;color:#888;">Žádná zvířata zatím nejsou evidována.</li>';
@@ -267,14 +301,14 @@
                     const li = document.createElement('li');
                     li.innerHTML = `
                         <div class="animal-header">
-                            <span class="animal-name">${animal.jmeno}</span>
-                            <span class="animal-type">${animal.druh}</span>
-                            <span class="animal-age">${animal.vek ? animal.vek + ' let' : 'věk neznámý'}</span>
+                            <span class="animal-name">${animal.name}</span>
+                            <span class="animal-type">${animal.species}</span>
+                            <span class="animal-age">${animal.age ? animal.age + ' let' : 'věk neznámý'}</span>
                         </div>
-                        <div class="animal-popis">${animal.popis ? animal.popis : ''}</div>
+                        <div class="animal-popis">${animal.description ? animal.description : ''}</div>
                         <div class="animal-actions">
                             <span class="adopted-label">Adoptováno:</span>
-                            <input type="checkbox" ${animal.adoptovano ? 'checked' : ''} disabled>
+                            <input type="checkbox" ${animal.adopted ? 'checked' : ''} disabled>
                             <button class="delete-btn" onclick="deleteAnimal(${animal.id})">Smazat</button>
                         </div>
                     `;
@@ -288,7 +322,7 @@
         async function deleteAnimal(id) {
             if (!confirm('Opravdu chcete smazat toto zvíře?')) return;
             try {
-                const response = await fetch('/api/items/' + id, { method: 'DELETE' });
+                const response = await fetch('/api/pets/' + id, { method: 'DELETE' });
                 if (response.ok) {
                     fetchAnimals();
                 } else {
@@ -296,6 +330,100 @@
                 }
             } catch (error) {
                 alert('Chyba při komunikaci se serverem.');
+            }
+        }
+
+        document.getElementById('owner-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const firstname = document.getElementById('firstname').value;
+            const lastname = document.getElementById('lastname').value;
+            const phone = document.getElementById('phone').value;
+            try {
+                const response = await fetch('/api/owners', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ firstname, lastname, phone })
+                });
+                if (response.ok) {
+                    document.getElementById('owner-form').reset();
+                    fetchOwners();        // znovu načte seznam majitelů
+                    fillOwnerSelect();    // znovu načte select s majiteli
+                } else {
+                    alert('Chyba při přidávání majitele.');
+                }
+            } catch (error) {
+                alert('Chyba při komunikaci se serverem.');
+            }
+        });
+
+        async function fetchOwners() {
+            const list = document.getElementById('owners-list');
+            list.innerHTML = '';
+            try {
+                const response = await fetch('/api/owners');
+                const owners = await response.json();
+                if (owners.length === 0) {
+                    list.innerHTML = '<li style="text-align:center;color:#888;">Žádní majitelé zatím nejsou evidováni.</li>';
+                }
+                owners.forEach(owner => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <strong>${owner.firstname} ${owner.lastname}</strong> (${owner.phone || 'bez telefonu'})
+                        <button onclick="showOwnerPets(${owner.id}, this)">Zobrazit zvířata</button>
+                        <button onclick="deleteOwner(${owner.id})" style="background:#ff6b6b;margin-left:8px;">Smazat</button>
+                        <ul class="owner-pets" style="display:none"></ul>
+                    `;
+                    list.appendChild(li);
+                });
+            } catch (error) {
+                list.innerHTML = '<li>Chyba při načítání majitelů.</li>';
+            }
+        }
+
+        async function showOwnerPets(ownerId, btn) {
+            const ul = btn.parentElement.querySelector('.owner-pets');
+            if (ul.style.display === 'none') {
+                const res = await fetch(`/api/owners/${ownerId}/pets`);
+                const pets = await res.json();
+                ul.innerHTML = pets.length
+                    ? pets.map(pet => `<li>${pet.name} (${pet.species})</li>`).join('')
+                    : '<li>Žádná zvířata</li>';
+                ul.style.display = 'block';
+                btn.textContent = 'Skrýt zvířata';
+            } else {
+                ul.style.display = 'none';
+                btn.textContent = 'Zobrazit zvířata';
+            }
+        }
+
+        async function deleteOwner(id) {
+            if (!confirm('Opravdu chcete smazat tohoto majitele?')) return;
+            try {
+                const response = await fetch('/api/owners/' + id, { method: 'DELETE' });
+                if (response.ok) {
+                    fetchOwners();
+                } else {
+                    alert('Chyba při mazání majitele.');
+                }
+            } catch (error) {
+                alert('Chyba při komunikaci se serverem.');
+            }
+        }
+
+        async function fillOwnerSelect() {
+            const select = document.getElementById('owner-select');
+            select.innerHTML = '<option value="">Bez majitele</option>';
+            try {
+                const response = await fetch('/api/owners');
+                const owners = await response.json();
+                owners.forEach(owner => {
+                    const option = document.createElement('option');
+                    option.value = owner.id;
+                    option.textContent = `${owner.firstname} ${owner.lastname}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                // ignore
             }
         }
     </script>
